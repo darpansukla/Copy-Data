@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Data Viewer</title>
+    <!-- SF Pro Font & Lucide Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --bg-color: #f5f5f7;
+            --card-bg: rgba(255, 255, 255, 0.8);
+            --card-border: rgba(0, 0, 0, 0.08);
+            --text-main: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent-color: #0071e3;
+            --accent-hover: #0077ed;
+            --accent-light: rgba(0, 113, 227, 0.1);
+            --success-color: #34c759;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.08);
+            --radius-lg: 16px;
+            --radius-md: 10px;
+            --radius-sm: 6px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 40px 20px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            flex: 1;
+            display: flex;
+            flex-direction: flex-column;
+            gap: 20px;
+        }
+
+        /* Toast Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 50%;
+            transform: translateX(50%) translateY(-100px);
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 1000;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast.show {
+            transform: translateX(50%) translateY(0);
+            opacity: 1;
+        }
+
+        /* Glassmorphism Card Wrapper */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+
+        /* Controls Section */
+        .toolbar {
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .search-box {
+            position: relative;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+            font-size: 14px;
+            transition: color 0.2s;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 10px 16px 10px 38px;
+            background: rgba(0, 0, 0, 0.04);
+            border: 1px solid transparent;
+            border-radius: var(--radius-md);
+            font-size: 14px;
+            color: var(--text-main);
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            background: #fff;
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 4px var(--accent-light);
+        }
+
+        .search-input:focus + i {
+            color: var(--accent-color);
+        }
+
+        .stats-badge {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: rgba(0, 0, 0, 0.04);
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
+
+        /* Table Container & Design */
+        .table-container {
+            overflow-x: auto;
+            max-height: calc(100vh - 220px);
+            position: relative;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            background: rgba(245, 245, 247, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--card-border);
+            z-index: 10;
+        }
+
+        td {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--card-border);
+            color: var(--text-main);
+            transition: background 0.15s ease;
+            white-space: nowrap;
+        }
+
+        /* Interactive Cell Copying */
+        tbody tr {
+            transition: background 0.15s ease;
+        }
+
+        tbody tr:hover {
+            background: rgba(0, 113, 227, 0.02);
+        }
+
+        .clickable-cell {
+            cursor: pointer;
+            position: relative;
+        }
+
+        .clickable-cell:hover {
+            background: var(--accent-light) !important;
+            color: var(--accent-color);
+        }
+
+        .clickable-cell:active {
+            transform: scale(0.99);
+        }
+
+        /* Action Modern Icon Button */
+        .action-cell {
+            width: 60px;
+            text-align: center;
+        }
+
+        .icon-btn {
+            background: transparent;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .icon-btn:hover {
+            background: var(--accent-light);
+            color: var(--accent-color);
+        }
+
+        .icon-btn:active {
+            transform: scale(0.92);
+        }
+
+        /* Loader & Empty States */
+        .state-container {
+            padding: 60px 20px;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(0, 113, 227, 0.1);
+            border-top-color: var(--accent-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 16px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Modern Apple Footer */
+        footer {
+            margin-top: auto;
+            padding-top: 30px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <i class="fa-solid fa-circle-check" style="color: var(--success-color)"></i>
+        <span id="toast-message">Copied to clipboard</span>
+    </div>
+
+    <div class="container">
+        <div class="card">
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="search-box">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Search data...">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <div id="statsBadge" class="stats-badge">Loading...</div>
+            </div>
+
+            <!-- Table Container -->
+            <div class="table-container">
+                <div id="loader" class="state-container">
+                    <div class="spinner"></div>
+                    <p>Loading spreadsheet data...</p>
+                </div>
+                <table id="dataTable" style="display: none;">
+                    <thead>
+                        <tr id="tableHeader"></tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+                <div id="emptyState" class="state-container" style="display: none;">
+                    <i class="fa-solid fa-folder-open" style="font-size: 32px; margin-bottom: 12px;"></i>
+                    <p>No matching records found</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        Made by Darpan Sukla
+    </footer>
+
+    <script>
+        const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQK8gfdwc3HNqAfJ8mO1CGuwg6KFsFcIupABIgpl5_vCubFyFz0g4JKVwOyFzrGv5oEBSZzUL3zdxHj/pub?gid=0&single=true&output=csv';
+
+        let globalHeaders = [];
+        let globalRows = [];
+
+        // Simple CSV Parser handling quotes & commas
+        function parseCSV(text) {
+            const lines = text.split(/\r\n|\n/);
+            const result = [];
+            for (let line of lines) {
+                if (!line.trim()) continue;
+                const row = [];
+                let insideQuote = false;
+                let entry = '';
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') {
+                        insideQuote = !insideQuote;
+                    } else if (char === ',' && !insideQuote) {
+                        row.push(entry.trim());
+                        entry = '';
+                    } else {
+                        entry += char;
+                    }
+                }
+                row.push(entry.trim());
+                result.push(row);
+            }
+            return result;
+        }
+
+        // Fetch Google Sheet Data
+        async function fetchData() {
+            try {
+                const response = await fetch(CSV_URL);
+                if (!response.ok) throw new Error('Failed to fetch CSV');
+                const csvText = await response.text();
+                const data = parseCSV(csvText);
+
+                if (data.length > 0) {
+                    globalHeaders = data[0];
+                    globalRows = data.slice(1);
+                    renderTable(globalRows);
+                } else {
+                    showEmpty();
+                }
+            } catch (err) {
+                document.getElementById('loader').innerHTML = `
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size: 32px; color: #ff3b30; margin-bottom: 12px;"></i>
+                    <p>Unable to load data. Please check your network or CSV URL.</p>
+                `;
+            }
+        }
+
+        // Toast feedback
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').innerText = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        // Copy content helper
+        function copyToClipboard(text, message) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(message);
+            }).catch(() => {
+                showToast('Failed to copy');
+            });
+        }
+
+        // Render Table Data
+        function renderTable(rows) {
+            const loader = document.getElementById('loader');
+            const table = document.getElementById('dataTable');
+            const emptyState = document.getElementById('emptyState');
+            const tableHeader = document.getElementById('tableHeader');
+            const tableBody = document.getElementById('tableBody');
+            const statsBadge = document.getElementById('statsBadge');
+
+            loader.style.display = 'none';
+
+            if (rows.length === 0) {
+                table.style.display = 'none';
+                emptyState.style.display = 'block';
+                statsBadge.innerText = '0 items';
+                return;
+            }
+
+            emptyState.style.display = 'none';
+            table.style.display = 'table';
+            statsBadge.innerText = `${rows.length} ${rows.length === 1 ? 'item' : 'items'}`;
+
+            // Header
+            tableHeader.innerHTML = '<th>#</th>' + globalHeaders.map(h => `<th>${h}</th>`).join('') + '<th class="action-cell">Copy</th>';
+
+            // Rows
+            tableBody.innerHTML = rows.map((row, rIdx) => {
+                const cells = row.map(val => `
+                    <td class="clickable-cell" onclick="copyToClipboard('${val.replace(/'/g, "\\'")}', 'Copied: ${val.replace(/'/g, "\\'")}')" title="Click to copy cell data">
+                        ${val}
+                    </td>
+                `).join('');
+                
+                const fullRowString = row.join(' | ').replace(/'/g, "\\'");
+                
+                return `
+                    <tr>
+                        <td style="color: var(--text-secondary); font-size: 12px;">${rIdx + 1}</td>
+                        ${cells}
+                        <td class="action-cell">
+                            <button class="icon-btn" onclick="copyToClipboard('${fullRowString}', 'Copied full row data')" title="Copy Row Data">
+                                <i class="fa-regular fa-copy"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function showEmpty() {
+            document.getElementById('loader').style.display = 'none';
+            document.getElementById('dataTable').style.display = 'none';
+            document.getElementById('emptyState').style.display = 'block';
+            document.getElementById('statsBadge').innerText = '0 items';
+        }
+
+        // Filter Logic
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase().trim();
+            if (!term) {
+                renderTable(globalRows);
+                return;
+            }
+            const filtered = globalRows.filter(row => 
+                row.some(cell => cell.toLowerCase().includes(term))
+            );
+            renderTable(filtered);
+        });
+
+        // Initialize
+        fetchData();
+    </script>
+</body>
+</html>
